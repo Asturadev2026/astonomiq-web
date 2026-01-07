@@ -12,40 +12,45 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Typography } from "@/components/ui/typography"
 
-const loginSchema = z.object({
+const signupSchema = z.object({
     orgId: z.string().min(1, "Please enter a valid Organization ID"),
     email: z.string().min(1, "Please enter a valid email").email("Please enter a valid email"),
     password: z.string().min(1, "Please enter your password"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
     rememberMe: z.boolean().optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
 })
 
-type LoginFormValues = z.infer<typeof loginSchema>
+type SignupFormValues = z.infer<typeof signupSchema>
 
-export function LoginForm() {
+export function SignupForm() {
     const {
         register,
         handleSubmit,
         formState: { errors },
-    } = useForm<LoginFormValues>({
-        resolver: zodResolver(loginSchema),
+    } = useForm<SignupFormValues>({
+        resolver: zodResolver(signupSchema),
         defaultValues: {
             orgId: "",
             email: "",
             password: "",
+            confirmPassword: "",
             rememberMe: false,
         },
     })
 
-    function onSubmit(data: LoginFormValues) {
+    function onSubmit(data: SignupFormValues) {
         console.log(data)
-        // Handle login logic here
+        // Handle signup logic here
     }
 
     return (
         <div className="w-full max-w-[440px] p-8 bg-white rounded-2xl shadow-[0px_4px_24px_rgba(0,0,0,0.06)] border border-gray-100">
             <div className="space-y-6">
                 <Typography variant="h1" as="h1" className="text-2xl font-bold text-gray-900 tracking-tight">
-                    Hospital Payment Reconciliation
+                    Create an Account
                 </Typography>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
@@ -126,6 +131,32 @@ export function LoginForm() {
                         )}
                     </div>
 
+                    <div className="space-y-2">
+                        <Label htmlFor="confirm-password" className="text-sm font-medium text-gray-700">
+                            Confirm Password
+                        </Label>
+                        <div className="relative">
+                            <Input
+                                id="confirm-password"
+                                type="password"
+                                placeholder="**********"
+                                className={`h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10 ${errors.confirmPassword ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
+                                    }`}
+                                {...register("confirmPassword")}
+                            />
+                            {errors.confirmPassword && (
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                </div>
+                            )}
+                        </div>
+                        {errors.confirmPassword && (
+                            <Typography variant="label-sm" as="p" className="text-red-500 font-medium">
+                                {errors.confirmPassword.message}
+                            </Typography>
+                        )}
+                    </div>
+
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                             <Checkbox
@@ -137,32 +168,23 @@ export function LoginForm() {
                                 htmlFor="remember"
                                 className="text-sm text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                             >
-                                Remember me
+                                I agree to terms
                             </label>
                         </div>
                         <Link
-                            href="/forgot-password"
+                            href="/login"
                             className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
                         >
-                            Forgot password?
+                            Already have an account?
                         </Link>
                     </div>
 
                     <Button type="submit" className="w-full h-11 bg-[#007AFF] hover:bg-[#0069DB] text-white font-medium rounded-lg text-sm">
-                        Sign In to Dashboard
+                        Sign Up
                     </Button>
 
-                    <div className="mt-4 text-center">
-                        <span className="text-sm text-gray-600">Don&apos;t have an account? </span>
-                        <Link
-                            href="/signup"
-                            className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
-                        >
-                            Sign up
-                        </Link>
-                    </div>
-
                     <div className="relative my-6">
+                        {/* Divider excluded or kept? I'll keep it for better UX consistent with login, can remove if not needed. */}
                         <div className="absolute inset-0 flex items-center">
                             <span className="w-full border-t border-gray-200" />
                         </div>
