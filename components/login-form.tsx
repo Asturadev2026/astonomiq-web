@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Typography } from "@/components/ui/typography"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 const loginSchema = z.object({
     orgId: z.string().min(1, "Please enter a valid Organization ID"),
@@ -22,6 +24,9 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>
 
 export function LoginForm() {
+    const router = useRouter()
+    const [loading, setLoading] = React.useState(false)
+
     const {
         register,
         handleSubmit,
@@ -36,9 +41,32 @@ export function LoginForm() {
         },
     })
 
-    function onSubmit(data: LoginFormValues) {
-        console.log(data)
-        // Handle login logic here
+    async function onSubmit(data: LoginFormValues) {
+        setLoading(true)
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: data.email,
+                    password: data.password,
+                }),
+            })
+
+            const result = await response.json()
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to login')
+            }
+
+            toast.success("Logged in successfully")
+            router.push("/dashboard")
+        } catch (error) {
+            console.error(error)
+            toast.error(error instanceof Error ? error.message : "Failed to login")
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
