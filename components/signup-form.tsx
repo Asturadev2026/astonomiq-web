@@ -5,17 +5,19 @@ import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Typography } from "@/components/ui/typography"
+import { Typography, typographyVariants } from "@/components/ui/typography"
+import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 const signupSchema = z.object({
-    orgId: z.string().min(1, "Please enter a valid Organization ID"),
+    hospitalName: z.string().min(2, "Hospital name must be at least 2 characters"),
     email: z.string().min(1, "Please enter a valid email").email("Please enter a valid email"),
-    password: z.string().min(1, "Please enter your password"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
     rememberMe: z.boolean().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -26,6 +28,9 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>
 
 export function SignupForm() {
+    const router = useRouter()
+    const [loading, setLoading] = React.useState(false)
+
     const {
         register,
         handleSubmit,
@@ -33,7 +38,7 @@ export function SignupForm() {
     } = useForm<SignupFormValues>({
         resolver: zodResolver(signupSchema),
         defaultValues: {
-            orgId: "",
+            hospitalName: "",
             email: "",
             password: "",
             confirmPassword: "",
@@ -41,9 +46,34 @@ export function SignupForm() {
         },
     })
 
-    function onSubmit(data: SignupFormValues) {
-        console.log(data)
-        // Handle signup logic here
+    async function onSubmit(data: SignupFormValues) {
+        setLoading(true)
+        try {
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hospitalName: data.hospitalName,
+                    email: data.email,
+                    password: data.password,
+                }),
+            })
+
+            const result = await response.json()
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to create account')
+            }
+
+            toast.success("Account created successfully!")
+            router.push('/login')
+
+        } catch (error) {
+            console.error(error)
+            toast.error(error instanceof Error ? error.message : "Something went wrong")
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -55,33 +85,34 @@ export function SignupForm() {
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
                     <div className="space-y-2">
-                        <Label htmlFor="org-id" className="text-sm font-medium text-gray-700">
-                            Hospital Code / Organization ID
+                        <Label htmlFor="hospital-name" className={typographyVariants({ variant: "label-md", className: "text-gray-700 font-semibold" })}>
+                            Hospital Name
                         </Label>
                         <div className="relative">
                             <Input
-                                id="org-id"
-                                placeholder="e.g. HOS-2024-ND"
-                                className={`h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10 ${errors.orgId ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
+                                id="hospital-name"
+                                placeholder="e.g. City General Hospital"
+                                className={`h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10 ${errors.hospitalName ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
                                     }`}
-                                {...register("orgId")}
+                                {...register("hospitalName")}
+                                disabled={loading}
                             />
-                            {errors.orgId && (
+                            {errors.hospitalName && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                                     <AlertTriangle className="h-5 w-5 text-red-500" />
                                 </div>
                             )}
                         </div>
-                        {errors.orgId && (
+                        {errors.hospitalName && (
                             <Typography variant="label-sm" as="p" className="text-red-500 font-medium">
-                                {errors.orgId.message}
+                                {errors.hospitalName.message}
                             </Typography>
                         )}
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                            Email
+                        <Label htmlFor="email" className={typographyVariants({ variant: "label-md", className: "text-gray-700 font-semibold" })}>
+                            User Email
                         </Label>
                         <div className="relative">
                             <Input
@@ -91,6 +122,7 @@ export function SignupForm() {
                                 className={`h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10 ${errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
                                     }`}
                                 {...register("email")}
+                                disabled={loading}
                             />
                             {errors.email && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -106,7 +138,7 @@ export function SignupForm() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                        <Label htmlFor="password" className={typographyVariants({ variant: "label-md", className: "text-gray-700 font-semibold" })}>
                             Password
                         </Label>
                         <div className="relative">
@@ -117,6 +149,7 @@ export function SignupForm() {
                                 className={`h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10 ${errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
                                     }`}
                                 {...register("password")}
+                                disabled={loading}
                             />
                             {errors.password && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -132,7 +165,7 @@ export function SignupForm() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="confirm-password" className="text-sm font-medium text-gray-700">
+                        <Label htmlFor="confirm-password" className={typographyVariants({ variant: "label-md", className: "text-gray-700 font-semibold" })}>
                             Confirm Password
                         </Label>
                         <div className="relative">
@@ -143,6 +176,7 @@ export function SignupForm() {
                                 className={`h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10 ${errors.confirmPassword ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
                                     }`}
                                 {...register("confirmPassword")}
+                                disabled={loading}
                             />
                             {errors.confirmPassword && (
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -163,6 +197,7 @@ export function SignupForm() {
                                 id="remember"
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 {...register("rememberMe")}
+                                disabled={loading}
                             />
                             <label
                                 htmlFor="remember"
@@ -179,12 +214,18 @@ export function SignupForm() {
                         </Link>
                     </div>
 
-                    <Button type="submit" className="w-full h-11 bg-[#007AFF] hover:bg-[#0069DB] text-white font-medium rounded-lg text-sm">
-                        Sign Up
+                    <Button type="submit" disabled={loading} className="w-full h-11 bg-[#007AFF] hover:bg-[#0069DB] text-white font-medium rounded-lg text-sm cursor-pointer">
+                        {loading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Creating Account...
+                            </>
+                        ) : (
+                            "Sign Up"
+                        )}
                     </Button>
 
                     <div className="relative my-6">
-                        {/* Divider excluded or kept? I'll keep it for better UX consistent with login, can remove if not needed. */}
                         <div className="absolute inset-0 flex items-center">
                             <span className="w-full border-t border-gray-200" />
                         </div>
