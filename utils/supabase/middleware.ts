@@ -33,18 +33,41 @@ export async function updateSession(req: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (
-        !user &&
-        !req.nextUrl.pathname.startsWith('/login') &&
-        !req.nextUrl.pathname.startsWith('/signup') &&
-        !req.nextUrl.pathname.startsWith('/forgot-password') &&
-        !req.nextUrl.pathname.startsWith('/auth') &&
-        !req.nextUrl.pathname.startsWith('/api')
-    ) {
-        // no user, potentially respond by redirecting the user to the login page
+    const path = req.nextUrl.pathname
+
+    // 1. If user is NOT logged in
+    if (!user) {
+        // Allow access to public paths
+        if (
+            path === '/' ||
+            path.startsWith('/login') ||
+            path.startsWith('/signup') ||
+            path.startsWith('/forgot-password') ||
+            path.startsWith('/auth') ||
+            path.startsWith('/api')
+        ) {
+            return res
+        }
+
+        // Redirect unauthenticated users to root (Login) for protected routes
         const url = req.nextUrl.clone()
-        url.pathname = '/login'
+        url.pathname = '/'
         return NextResponse.redirect(url)
+    }
+
+    // 2. If user IS logged in
+    if (user) {
+        // Redirect authenticated users away from public auth pages to dashboard
+        if (
+            path === '/' ||
+            path.startsWith('/login') ||
+            path.startsWith('/signup') ||
+            path.startsWith('/forgot-password')
+        ) {
+            const url = req.nextUrl.clone()
+            url.pathname = '/dashboard'
+            return NextResponse.redirect(url)
+        }
     }
 
     return res

@@ -9,8 +9,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "AstronomIQ - Powered by Astura",
-  description: "AstronomIQ",
+  title: "AstonomIQ - Powered by Astura",
+  description: "AstonomIQ",
 };
 
 export default function RootLayout({
