@@ -65,10 +65,12 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
             <div className="flex items-center gap-4">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Avatar className="h-9 w-9 cursor-pointer border border-gray-200 hover:border-blue-500 transition-colors">
-                            <AvatarImage src="/avatars/01.png" alt="@user" />
-                            <AvatarFallback className="bg-blue-50 text-blue-600 font-medium text-xs">JD</AvatarFallback>
-                        </Avatar>
+                        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                            <Avatar className="h-8 w-8">
+                                <AvatarImage src="/avatars/01.png" alt="@user" />
+                                <AvatarFallback className="bg-blue-50 text-blue-600 font-medium text-xs">JD</AvatarFallback>
+                            </Avatar>
+                        </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56" align="end" forceMount>
                         <DropdownMenuLabel className="font-normal">
