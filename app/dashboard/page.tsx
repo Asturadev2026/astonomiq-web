@@ -5,6 +5,8 @@ import { MatchAnalysisChart } from "@/components/charts/match-analysis-chart"
 import { ProcessEfficiencyChart } from "@/components/charts/process-efficiency-chart"
 import { ReconciliationTrendChart } from "@/components/charts/reconciliation-trend-chart"
 import { UploadVolumeChart } from "@/components/charts/upload-volume-chart"
+import { ReconciliationSummary } from "@/components/reconciliation-summary"
+import { PendingReview } from "@/components/pending-review"
 import { Plus, Upload, RefreshCw, FileText, Eye, Sparkles, Briefcase, ShieldCheck, AlertCircle, BarChart3, History, Search } from "lucide-react"
 
 export default function DashboardPage() {
@@ -114,6 +116,12 @@ export default function DashboardPage() {
                     {/* Bottom Row: Full Width Bar Chart */}
                     <div className="grid grid-cols-1">
                         <UploadVolumeChart />
+                    </div>
+
+                    {/* Tables Section */}
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <ReconciliationSummary />
+                        <PendingReview />
                     </div>
                 </div>
             </div>
