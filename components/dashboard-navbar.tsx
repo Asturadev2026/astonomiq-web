@@ -42,10 +42,10 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
     return (
         <nav className="w-full bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
+                <Button variant="ghost" size="icon" className="md:hidden cursor-pointer" onClick={onMenuClick}>
                     <Menu className="h-6 w-6 text-gray-600" />
                 </Button>
-                <Button variant="ghost" size="icon" className="hidden md:flex hover:bg-transparent" onClick={onMenuClick}>
+                <Button variant="ghost" size="icon" className="hidden md:flex hover:bg-transparent cursor-pointer" onClick={onMenuClick}>
                     <Menu className="h-6 w-6 text-gray-600" />
                 </Button>
 
@@ -65,7 +65,7 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
             <div className="flex items-center gap-4">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                        <Button variant="ghost" className="relative h-8 w-8 rounded-full cursor-pointer">
                             <Avatar className="h-8 w-8">
                                 <AvatarImage src="/avatars/01.png" alt="@user" />
                                 <AvatarFallback className="bg-blue-50 text-blue-600 font-medium text-xs">JD</AvatarFallback>

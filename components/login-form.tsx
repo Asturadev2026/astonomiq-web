@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,6 +30,7 @@ export function LoginForm() {
     const {
         register,
         handleSubmit,
+        setValue,
         formState: { errors },
     } = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
@@ -40,6 +41,17 @@ export function LoginForm() {
             rememberMe: false,
         },
     })
+
+    React.useEffect(() => {
+        // Check for pre-filled Org ID from signup
+        const prefilledOrgId = localStorage.getItem("prefilledOrgId")
+        if (prefilledOrgId) {
+            setValue("orgId", prefilledOrgId)
+            // Optional: Clear it so it doesn't persist forever, or keep it.
+            // Let's keep it for now as it's a convenience.
+            // localStorage.removeItem("prefilledOrgId") 
+        }
+    }, [setValue])
 
     async function onSubmit(data: LoginFormValues) {
         setLoading(true)
@@ -176,8 +188,15 @@ export function LoginForm() {
                         </Link>
                     </div>
 
-                    <Button type="submit" className="w-full h-11 bg-[#007AFF] hover:bg-[#0069DB] text-white font-medium rounded-lg text-sm">
-                        Sign In to Dashboard
+                    <Button type="submit" disabled={loading} className="w-full h-11 bg-[#007AFF] hover:bg-[#0069DB] text-white font-medium rounded-lg text-sm cursor-pointer">
+                        {loading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Signing In...
+                            </>
+                        ) : (
+                            "Sign In to Dashboard"
+                        )}
                     </Button>
 
                     <div className="mt-4 text-center">

@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation"
 
 const signupSchema = z.object({
     hospitalName: z.string().min(2, "Hospital name must be at least 2 characters"),
+    fullName: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().min(1, "Please enter a valid email").email("Please enter a valid email"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
@@ -39,6 +40,7 @@ export function SignupForm() {
         resolver: zodResolver(signupSchema),
         defaultValues: {
             hospitalName: "",
+            fullName: "",
             email: "",
             password: "",
             confirmPassword: "",
@@ -54,6 +56,7 @@ export function SignupForm() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     hospitalName: data.hospitalName,
+                    fullName: data.fullName,
                     email: data.email,
                     password: data.password,
                 }),
@@ -66,6 +69,8 @@ export function SignupForm() {
             }
 
             toast.success("Account created successfully!")
+            // Save hospital ID to local storage for pre-filling login form
+            localStorage.setItem("prefilledOrgId", result.hospitalCode)
             router.push('/login')
 
         } catch (error) {
@@ -106,6 +111,32 @@ export function SignupForm() {
                         {errors.hospitalName && (
                             <Typography variant="label-sm" as="p" className="text-red-500 font-medium">
                                 {errors.hospitalName.message}
+                            </Typography>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="full-name" className={typographyVariants({ variant: "label-md", className: "text-gray-700 font-semibold" })}>
+                            Full Name
+                        </Label>
+                        <div className="relative">
+                            <Input
+                                id="full-name"
+                                placeholder="e.g. John Doe"
+                                className={`h-11 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10 ${errors.fullName ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""
+                                    }`}
+                                {...register("fullName")}
+                                disabled={loading}
+                            />
+                            {errors.fullName && (
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                </div>
+                            )}
+                        </div>
+                        {errors.fullName && (
+                            <Typography variant="label-sm" as="p" className="text-red-500 font-medium">
+                                {errors.fullName.message}
                             </Typography>
                         )}
                     </div>

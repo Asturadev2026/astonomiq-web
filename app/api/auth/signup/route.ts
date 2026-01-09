@@ -6,6 +6,7 @@ const signupSchema = z.object({
     email: z.string().email(),
     password: z.string().min(8),
     hospitalName: z.string().min(2),
+    fullName: z.string().min(2),
 })
 
 function generateHospitalCode() {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
             )
         }
 
-        const { email, password, hospitalName } = result.data
+        const { email, password, hospitalName, fullName } = result.data
         const supabaseAdmin = createSupabaseAdminClient()
 
         // 1️⃣ Create Auth User
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
             email,
             hospital_id: hospital.id,
             role: 'admin',
+            full_name: fullName,
         })
 
         if (profileError) {

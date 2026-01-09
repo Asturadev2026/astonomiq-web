@@ -59,7 +59,7 @@ export function DashboardSidebar({ isOpen }: DashboardSidebarProps) {
                                     <DialogTrigger asChild>
                                         <button
                                             className={cn(
-                                                "flex w-full items-center rounded-lg px-3 py-2.5 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900",
+                                                "flex w-full items-center rounded-lg px-3 py-2.5 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 cursor-pointer",
                                                 !isOpen && "justify-center px-0"
                                             )}
                                             title={!isOpen ? item.label : undefined}
