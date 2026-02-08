@@ -61,6 +61,29 @@ export default function ReconciliationPage() {
     return "bg-red-100 text-red-700"
   }
 
+  // ✅ DATE + TIME FORMATTER (Excel / Google Sheets safe)
+  const formatDateTime = (v: any) => {
+    if (!v) return "-"
+
+    // Excel serial number (date + time)
+    if (typeof v === "number") {
+      const date = new Date((v - 25569) * 86400 * 1000)
+      return date.toLocaleString("en-IN", {
+        day: "numeric",
+        month: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    }
+
+    // Already formatted string
+    if (typeof v === "string") return v
+
+    return "-"
+  }
+
   /* ---------------- PAGE ---------------- */
 
   return (
@@ -122,7 +145,12 @@ export default function ReconciliationPage() {
                   >
                     <td className="px-3 py-2">{r.HIS_cleanId}</td>
                     <td className="px-3 py-2">{r.HIS_PatientId}</td>
-                    <td className="px-3 py-2">{r.HIS_Date}</td>
+
+                    {/* ✅ FIXED DATE + TIME */}
+                    <td className="px-3 py-2">
+                      {formatDateTime(r.HIS_Date)}
+                    </td>
+
                     <td className="px-3 py-2">{r.HIS_PaymentMode}</td>
 
                     <td className="px-3 py-2 text-right">
@@ -148,7 +176,6 @@ export default function ReconciliationPage() {
                       </span>
                     </td>
 
-                    {/* 3️⃣ Auto-Match Logic Visibility */}
                     <td className="px-3 py-2 text-xs text-gray-600">
                       {r.Justification ||
                         "Matched on Bill No + Amount (±1 day)"}
@@ -159,37 +186,6 @@ export default function ReconciliationPage() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* 4️⃣ Variance & Adjustment Panel (UI placeholder) */}
-      <div className="rounded-lg border bg-white p-4 shadow-sm">
-        <Typography className="font-medium text-gray-900">
-          Variance & Adjustment
-        </Typography>
-        <Typography variant="body-sm" className="text-gray-500">
-          Select variance reason, post adjustment, and close reconciliation.
-          (Editable per transaction)
-        </Typography>
-      </div>
-
-      {/* 5️⃣ Settlement Mapping View */}
-      <div className="rounded-lg border bg-white p-4 shadow-sm">
-        <Typography className="font-medium text-gray-900">
-          Settlement Mapping
-        </Typography>
-        <Typography variant="body-sm" className="text-gray-500">
-          Transaction → Settlement Batch → Bank Credit (UTR based)
-        </Typography>
-      </div>
-
-      {/* 6️⃣ Closure & Audit Trail */}
-      <div className="rounded-lg border bg-white p-4 shadow-sm">
-        <Typography className="font-medium text-gray-900">
-          Closure & Audit Trail
-        </Typography>
-        <Typography variant="body-sm" className="text-gray-500">
-          Records closure status, user, date, reason code, and change history.
-        </Typography>
       </div>
     </div>
   )

@@ -54,6 +54,26 @@ export default function ReportsPage() {
       return acc
     }, {})
 
+  // ✅ DATE + TIME FORMATTER (Excel / Sheets safe)
+  const formatDateTime = (v: any) => {
+    if (!v) return "-"
+
+    if (typeof v === "number") {
+      const date = new Date((v - 25569) * 86400 * 1000)
+      return date.toLocaleString("en-IN", {
+        day: "numeric",
+        month: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    }
+
+    if (typeof v === "string") return v
+    return "-"
+  }
+
   /* =====================================================
      ALL useMemo HOOKS — ALWAYS EXECUTED
   ===================================================== */
@@ -61,7 +81,7 @@ export default function ReportsPage() {
   const dailyReport = useMemo(() => {
     const byDate = groupBy(data, "HIS_Date")
     return Object.entries(byDate).map(([date, rows]) => ({
-      date,
+      date, // keep raw, format at render time
       his: sum(rows, "HIS_Amount"),
       paytm: sum(rows, "PAYTM_Amount"),
       cash: sum(
@@ -136,7 +156,7 @@ export default function ReportsPage() {
   }, [data])
 
   /* =====================================================
-     SAFE CONDITIONAL RENDER (AFTER HOOKS)
+     SAFE CONDITIONAL RENDER
   ===================================================== */
 
   if (loading) {
@@ -155,7 +175,7 @@ export default function ReportsPage() {
         <SimpleTable
           headers={["Date", "HIS Billed", "Paytm", "Cash", "Bank", "Difference"]}
           rows={dailyReport.map(r => [
-            r.date,
+            formatDateTime(Number(r.date)), // ✅ FIXED HERE
             r.his,
             r.paytm,
             r.cash,
