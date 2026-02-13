@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { UploadDialogContent } from "@/components/upload-dialog-content";
+import AIChatWidget from "@/components/ai-chat-widget";
 
 import {
   Plus,
@@ -308,6 +309,8 @@ export default function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        {/* ✅ AI Chatbot Widget */}
+      <AIChatWidget />
     </div>
   );
 }
