@@ -10,7 +10,7 @@ export default function ReconciliationPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("https://asturaintelligence.app.n8n.cloud/webhook/mis-data")
+    fetch("/api/mis")
       .then(res => res.json())
       .then(res => {
         const rows =
@@ -30,16 +30,23 @@ export default function ReconciliationPage() {
 
   const summary = useMemo(() => {
     const total = data.length
-    const autoMatched = data.filter(d => d.ScenarioCode === "FULL_MATCH").length
-    const partial = data.filter(d =>
-      ["TRIANGLE_DISCREPANCY", "PARTIAL_MATCH"].includes(d.ScenarioCode)
+
+    const autoMatched = data.filter(
+      d => d.scenario_code === "FULL_MATCH"
     ).length
+
+    const partial = data.filter(d =>
+      ["TRIANGLE_DISCREPANCY", "PARTIAL_MATCH"].includes(d.scenario_code)
+    ).length
+
     const unmatched = total - autoMatched - partial
 
     const valueAtRisk = data
-      .filter(d => d.ScenarioCode !== "FULL_MATCH")
+      .filter(d => d.scenario_code !== "FULL_MATCH")
       .reduce((sum, d) => {
-        const diff = Number(d.HIS_Amount || 0) - Number(d.BNK_Amount || 0)
+        const diff =
+          Number(d.his_amount || 0) -
+          Number(d.bnk_amount || 0)
         return sum + Math.abs(diff)
       }, 0)
 
@@ -61,13 +68,11 @@ export default function ReconciliationPage() {
     return "bg-red-100 text-red-700"
   }
 
-  // ✅ DATE + TIME FORMATTER (Excel / Google Sheets safe)
   const formatDateTime = (v: any) => {
     if (!v) return "-"
 
-    // Excel serial number (date + time)
-    if (typeof v === "number") {
-      const date = new Date((v - 25569) * 86400 * 1000)
+    if (!isNaN(Number(v))) {
+      const date = new Date((Number(v) - 25569) * 86400 * 1000)
       return date.toLocaleString("en-IN", {
         day: "numeric",
         month: "numeric",
@@ -78,10 +83,7 @@ export default function ReconciliationPage() {
       })
     }
 
-    // Already formatted string
-    if (typeof v === "string") return v
-
-    return "-"
+    return v
   }
 
   /* ---------------- PAGE ---------------- */
@@ -92,7 +94,7 @@ export default function ReconciliationPage() {
         Reconciliation
       </Typography>
 
-      {/* 1️⃣ Reconciliation Status Dashboard */}
+      {/* Dashboard */}
       <div className="grid grid-cols-5 gap-4">
         {[
           ["Total Transactions", summary.total],
@@ -111,7 +113,7 @@ export default function ReconciliationPage() {
         ))}
       </div>
 
-      {/* 2️⃣ Transaction-Level Reconciliation Table */}
+      {/* Table */}
       <div className="rounded-lg border bg-white shadow-sm">
         <div className="overflow-auto max-h-[65vh]">
           <table className="min-w-full text-sm">
@@ -121,12 +123,10 @@ export default function ReconciliationPage() {
                 <th className="px-3 py-2 text-left">Patient ID</th>
                 <th className="px-3 py-2 text-left">Date</th>
                 <th className="px-3 py-2 text-left">Payment Mode</th>
-
                 <th className="px-3 py-2 text-right">HIS Amount</th>
                 <th className="px-3 py-2 text-right">Paytm Net</th>
                 <th className="px-3 py-2 text-right">Bank Credit</th>
                 <th className="px-3 py-2 text-right">Difference</th>
-
                 <th className="px-3 py-2 text-left">Match Status</th>
                 <th className="px-3 py-2 text-left">Match Logic</th>
               </tr>
@@ -135,49 +135,43 @@ export default function ReconciliationPage() {
             <tbody>
               {data.map((r, i) => {
                 const diff =
-                  Number(r.HIS_Amount || 0) -
-                  Number(r.BNK_Amount || 0)
+                  Number(r.his_amount || 0) -
+                  Number(r.bnk_amount || 0)
 
                 return (
                   <tr
                     key={i}
                     className={i % 2 ? "bg-gray-50" : "bg-white"}
                   >
-                    <td className="px-3 py-2">{r.HIS_cleanId}</td>
-                    <td className="px-3 py-2">{r.HIS_PatientId}</td>
-
-                    {/* ✅ FIXED DATE + TIME */}
+                    <td className="px-3 py-2">{r.his_clean_id}</td>
+                    <td className="px-3 py-2">{r.his_patient_id}</td>
                     <td className="px-3 py-2">
-                      {formatDateTime(r.HIS_Date)}
+                      {formatDateTime(r.his_date)}
                     </td>
-
-                    <td className="px-3 py-2">{r.HIS_PaymentMode}</td>
-
+                    <td className="px-3 py-2">{r.his_payment_mode}</td>
                     <td className="px-3 py-2 text-right">
-                      {formatAmount(r.HIS_Amount)}
+                      {formatAmount(r.his_amount)}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {formatAmount(r.PAYTM_NetAmount)}
+                      {formatAmount(r.paytm_net_amount)}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {formatAmount(r.BNK_Amount)}
+                      {formatAmount(r.bnk_amount)}
                     </td>
                     <td className="px-3 py-2 text-right font-medium">
                       {formatAmount(diff)}
                     </td>
-
                     <td className="px-3 py-2">
                       <span
                         className={`rounded px-2 py-1 text-xs font-semibold ${statusBadge(
-                          r.ScenarioCode
+                          r.scenario_code
                         )}`}
                       >
-                        {r.ScenarioCode}
+                        {r.scenario_code}
                       </span>
                     </td>
-
                     <td className="px-3 py-2 text-xs text-gray-600">
-                      {r.Justification ||
+                      {r.justification ||
                         "Matched on Bill No + Amount (±1 day)"}
                     </td>
                   </tr>

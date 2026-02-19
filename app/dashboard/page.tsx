@@ -39,23 +39,16 @@ import {
 
 type Row = Record<string, any>;
 
-/* ================== DATE + METRIC HELPERS ================== */
+/* ================== DATE HELPERS ================== */
 
 function parseDate(d: unknown): number {
   if (!d) return 0;
-
-  if (d instanceof Date) return d.getTime();
 
   if (typeof d === "number") {
     return new Date((d - 25569) * 86400 * 1000).getTime();
   }
 
   if (typeof d === "string") {
-    const parts = d.split("/");
-    if (parts.length === 3) {
-      const [m, day, y] = parts.map(Number);
-      return new Date(y, m - 1, day).getTime();
-    }
     const ts = Date.parse(d);
     return isNaN(ts) ? 0 : ts;
   }
@@ -68,44 +61,94 @@ function pctChange(curr: number, prev: number) {
   return Number((((curr - prev) / prev) * 100).toFixed(1));
 }
 
+/* ================== METRICS ================== */
+
 function computeMetrics(data: Row[]) {
   if (!data.length) return null;
 
   const total = data.length;
-  const matched = data.filter(r => r.ScenarioCode === "FULL_MATCH").length;
+
+  const matched = data.filter(
+    r => r.scenario_code === "FULL_MATCH"
+  ).length;
+
   const unmatched = total - matched;
-  const matchPct = total ? Number(((matched / total) * 100).toFixed(1)) : 0;
+
+  const matchPct = total
+    ? Number(((matched / total) * 100).toFixed(1))
+    : 0;
 
   const leakage = data.reduce((sum, r) => {
-    if (r.ScenarioCode === "FULL_MATCH") return sum;
-    const diff = Number(r.HIS_Amount || 0) - Number(r.BNK_Amount || 0);
+    if (r.scenario_code === "FULL_MATCH") return sum;
+
+    const diff =
+      Number(r.his_amount || 0) -
+      Number(r.bnk_amount || 0);
+
     return diff > 0 ? sum + diff : sum;
   }, 0);
 
+  /* ===== GROUP BY DATE ===== */
+
   const byDate = data.reduce<Record<number, Row[]>>((acc, r) => {
-    const ts = parseDate(r.HIS_Date);
+    const ts = parseDate(r.his_date);
     if (!ts) return acc;
+
     acc[ts] = acc[ts] || [];
     acc[ts].push(r);
+
     return acc;
   }, {});
 
-  const dates = Object.keys(byDate).map(Number).sort((a, b) => a - b);
+  const dates = Object.keys(byDate)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  if (dates.length < 2) {
+    return {
+      total,
+      matched,
+      unmatched,
+      matchPct,
+      totalTrend: 0,
+      matchedTrend: 0,
+      unmatchedTrend: 0,
+      matchPctTrend: 0,
+      effortHours: Math.round(matched * 0.00037),
+      effortTrend: 15,
+      leakage: Math.round(leakage),
+      leakageTrend: 0,
+    };
+  }
+
   const latest = byDate[dates[dates.length - 1]] || [];
   const previous = byDate[dates[dates.length - 2]] || [];
 
-  const latestMatched = latest.filter(r => r.ScenarioCode === "FULL_MATCH").length;
-  const previousMatched = previous.filter(r => r.ScenarioCode === "FULL_MATCH").length;
+  const latestMatched = latest.filter(
+    r => r.scenario_code === "FULL_MATCH"
+  ).length;
+
+  const previousMatched = previous.filter(
+    r => r.scenario_code === "FULL_MATCH"
+  ).length;
 
   const latestLeakage = latest.reduce((s, r) => {
-    if (r.ScenarioCode === "FULL_MATCH") return s;
-    const d = Number(r.HIS_Amount || 0) - Number(r.BNK_Amount || 0);
+    if (r.scenario_code === "FULL_MATCH") return s;
+
+    const d =
+      Number(r.his_amount || 0) -
+      Number(r.bnk_amount || 0);
+
     return d > 0 ? s + d : s;
   }, 0);
 
   const previousLeakage = previous.reduce((s, r) => {
-    if (r.ScenarioCode === "FULL_MATCH") return s;
-    const d = Number(r.HIS_Amount || 0) - Number(r.BNK_Amount || 0);
+    if (r.scenario_code === "FULL_MATCH") return s;
+
+    const d =
+      Number(r.his_amount || 0) -
+      Number(r.bnk_amount || 0);
+
     return d > 0 ? s + d : s;
   }, 0);
 
@@ -122,8 +165,12 @@ function computeMetrics(data: Row[]) {
       previous.length - previousMatched
     ),
     matchPctTrend: pctChange(
-      latest.length ? (latestMatched / latest.length) * 100 : 0,
-      previous.length ? (previousMatched / previous.length) * 100 : 0
+      latest.length
+        ? (latestMatched / latest.length) * 100
+        : 0,
+      previous.length
+        ? (previousMatched / previous.length) * 100
+        : 0
     ),
 
     effortHours: Math.round(matched * 0.00037),
@@ -132,38 +179,6 @@ function computeMetrics(data: Row[]) {
     leakage: Math.round(leakage),
     leakageTrend: pctChange(latestLeakage, previousLeakage),
   };
-}
-
-/* ================== CSV DOWNLOAD ================== */
-
-function downloadCSV(rows: Row[]) {
-  if (!rows.length) return;
-
-  const headers = Object.keys(rows[0]);
-
-  const csv = [
-    headers.join(","),
-    ...rows.map(row =>
-      headers
-        .map(h => {
-          const val = row[h];
-          if (val === null || val === undefined) return "";
-          return `"${String(val).replace(/"/g, '""')}"`;
-        })
-        .join(",")
-    ),
-  ].join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `MIS_Report_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 /* ================== PAGE ================== */
@@ -184,6 +199,7 @@ export default function DashboardPage() {
             : Array.isArray(res)
             ? res
             : [];
+
         setData(rows);
       });
   }, []);
@@ -205,6 +221,36 @@ export default function DashboardPage() {
 
     downloadCSV(rows);
   };
+
+  function downloadCSV(rows: Row[]) {
+    if (!rows.length) return;
+
+    const headers = Object.keys(rows[0]);
+
+    const csv = [
+      headers.join(","),
+      ...rows.map(row =>
+        headers
+          .map(h => {
+            const val = row[h];
+            if (val === null || val === undefined) return "";
+            return `"${String(val).replace(/"/g, '""')}"`;
+          })
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `MIS_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50/50">
@@ -237,7 +283,6 @@ export default function DashboardPage() {
               Run Reconciliation
             </Button>
 
-            {/* ✅ UPDATED BUTTON */}
             <Button
               variant="outline"
               className="bg-white border-gray-200 gap-2 shadow-sm"
@@ -271,7 +316,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* CHARTS */}
+        {/* CHARTS (UNCHANGED) */}
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="grid grid-cols-2 gap-4">
@@ -299,17 +344,12 @@ export default function DashboardPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <p className="text-sm text-gray-600 mt-2">
-            Your reconciliation process has started.
-            You’ll be notified once it completes.
-          </p>
-
           <DialogFooter className="mt-6 flex justify-center">
             <Button onClick={() => setShowReconDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-        {/* ✅ AI Chatbot Widget */}
+
       <AIChatWidget />
     </div>
   );

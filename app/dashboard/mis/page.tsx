@@ -1,56 +1,55 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Typography } from "@/components/ui/typography"
 
 type MISRow = Record<string, any>
 
-/* ✅ EXACT column order (DO NOT change order) */
+/* ✅ Column order WITHOUT row_number */
 const COLUMN_ORDER = [
-  "row_number",
-  "TransactionID",
-  "HIS_cleanId",
-  "PAYTM_cleanId",
-  "BNK_cleanId",
-  "OrderID",
-  "UTR",
-  "BankTransactionID",
+  "transaction_id",
+  "his_clean_id",
+  "paytm_clean_id",
+  "bnk_clean_id",
+  "order_id",
+  "utr",
+  "bank_transaction_id",
 
-  "HIS_Amount",
-  "PAYTM_Amount",
-  "PAYTM_NetAmount",
-  "BNK_Amount",
+  "his_amount",
+  "paytm_amount",
+  "paytm_net_amount",
+  "bnk_amount",
 
-  "PAYTM_mdrPercent",
-  "PAYTM_mdrAmount",
-  "PAYTM_gstPercent",
-  "PAYTM_gstAmount",
+  "paytm_mdr_percent",
+  "paytm_mdr_amount",
+  "paytm_gst_percent",
+  "paytm_gst_amount",
 
-  "HIS_Status",
-  "PAYTM_Status",
-  "BNK_DrCr",
+  "his_status",
+  "paytm_status",
+  "bnk_drcr",
 
-  "HIS_Date",
-  "PAYTM_Date",
-  "BNK_Date",
-  "Days_To_Bank",
+  "his_date",
+  "paytm_date",
+  "bnk_date",
+  "days_to_bank",
 
-  "HIS_Department",
-  "HIS_PaymentMode",
-  "HIS_PatientId",
+  "his_department",
+  "his_payment_mode",
+  "his_patient_id",
 
-  "PAYTM_UPI",
-  "PAYTM_PatientId",
+  "paytm_upi",
+  "paytm_patient_id",
 
-  "BNK_Narration",
+  "bnk_narration",
 
-  "HIS_Source",
-  "PAYTM_Source",
-  "BNK_Source",
+  "his_source",
+  "paytm_source",
+  "bnk_source",
 
-  "ScenarioCode",
-  "Result",
-  "Justification",
+  "scenario_code",
+  "result",
+  "justification",
 ]
 
 export default function MISPage() {
@@ -59,7 +58,7 @@ export default function MISPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch("https://asturaintelligence.app.n8n.cloud/webhook/mis-data")
+    fetch("/api/mis")
       .then(res => {
         if (!res.ok) throw new Error("Failed to fetch MIS data")
         return res.json()
@@ -84,22 +83,34 @@ export default function MISPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  /* ✅ SORT DATA BY DATE (Latest First) */
+  const sortedData = useMemo(() => {
+    return [...data].sort(
+      (a, b) => Number(b.his_date || 0) - Number(a.his_date || 0)
+    )
+  }, [data])
+
   if (loading) return <Typography>Loading MIS data…</Typography>
   if (error) return <Typography className="text-red-600">{error}</Typography>
-  if (!data.length) return <Typography>No MIS data available</Typography>
+  if (!sortedData.length)
+    return <Typography>No MIS data available</Typography>
 
-  /* ✅ USE FIXED SEQUENCE */
-  const columns = COLUMN_ORDER.filter(col => col in data[0])
+  const columns = COLUMN_ORDER.filter(col => col in sortedData[0])
 
   const formatValue = (val: any) => {
+    if (val === null || val === undefined) return ""
+
+    // Excel serial date
+    if (!isNaN(Number(val)) && Number(val) > 40000 && Number(val) < 50000) {
+      const date = new Date((Number(val) - 25569) * 86400 * 1000)
+      return date.toLocaleString("en-IN")
+    }
+
     if (typeof val === "number") {
-      if (val > 40000 && val < 50000) {
-        const date = new Date(Math.round((val - 25569) * 86400 * 1000))
-        return date.toLocaleDateString()
-      }
       return val.toLocaleString()
     }
-    return String(val ?? "")
+
+    return String(val)
   }
 
   return (
@@ -113,22 +124,38 @@ export default function MISPage() {
           <table className="min-w-max border-collapse text-sm">
             <thead className="sticky top-0 bg-gray-100 z-20">
               <tr>
+                {/* ✅ NEW SEQUENTIAL ROW COLUMN */}
+                <th className="border px-3 py-2 text-left font-semibold text-gray-700">
+                  ROW NO
+                </th>
+
                 {columns.map(col => (
                   <th
                     key={col}
                     className="border px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap"
                   >
-                    {col.replace(/_/g, " ")}
+                    {col.replace(/_/g, " ").toUpperCase()}
                   </th>
                 ))}
               </tr>
             </thead>
 
             <tbody>
-              {data.map((row, i) => (
-                <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+              {sortedData.map((row, i) => (
+                <tr
+                  key={i}
+                  className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                >
+                  {/* ✅ UI GENERATED SEQUENCE */}
+                  <td className="border px-3 py-2 font-medium">
+                    {i + 1}
+                  </td>
+
                   {columns.map(col => (
-                    <td key={col} className="border px-3 py-2 whitespace-nowrap">
+                    <td
+                      key={col}
+                      className="border px-3 py-2 whitespace-nowrap"
+                    >
                       {formatValue(row[col])}
                     </td>
                   ))}

@@ -35,7 +35,7 @@ export default function ReportsPage() {
   /* ---------------- FETCH ---------------- */
 
   useEffect(() => {
-    fetch("https://asturaintelligence.app.n8n.cloud/webhook/mis-data")
+    fetch("/api/mis")
       .then(res => res.json())
       .then(json => setData(normalizeMISResponse(json)))
       .finally(() => setLoading(false))
@@ -54,12 +54,11 @@ export default function ReportsPage() {
       return acc
     }, {})
 
-  // ✅ DATE + TIME FORMATTER (Excel / Sheets safe)
   const formatDateTime = (v: any) => {
     if (!v) return "-"
 
-    if (typeof v === "number") {
-      const date = new Date((v - 25569) * 86400 * 1000)
+    if (!isNaN(Number(v))) {
+      const date = new Date((Number(v) - 25569) * 86400 * 1000)
       return date.toLocaleString("en-IN", {
         day: "numeric",
         month: "numeric",
@@ -70,26 +69,27 @@ export default function ReportsPage() {
       })
     }
 
-    if (typeof v === "string") return v
-    return "-"
+    return v
   }
 
   /* =====================================================
-     ALL useMemo HOOKS — ALWAYS EXECUTED
+     ALL REPORT CALCULATIONS (FIXED TO SNAKE_CASE)
   ===================================================== */
 
   const dailyReport = useMemo(() => {
-    const byDate = groupBy(data, "HIS_Date")
+    const byDate = groupBy(data, "his_date")
+
     return Object.entries(byDate).map(([date, rows]) => ({
-      date, // keep raw, format at render time
-      his: sum(rows, "HIS_Amount"),
-      paytm: sum(rows, "PAYTM_Amount"),
+      date,
+      his: sum(rows, "his_amount"),
+      paytm: sum(rows, "paytm_amount"),
       cash: sum(
-        rows.filter(r => r.HIS_PaymentMode === "Cash"),
-        "HIS_Amount"
+        rows.filter(r => r.his_payment_mode === "Cash"),
+        "his_amount"
       ),
-      bank: sum(rows, "BNK_Amount"),
-      difference: sum(rows, "HIS_Amount") - sum(rows, "BNK_Amount"),
+      bank: sum(rows, "bnk_amount"),
+      difference:
+        sum(rows, "his_amount") - sum(rows, "bnk_amount"),
     }))
   }, [data])
 
@@ -97,28 +97,32 @@ export default function ReportsPage() {
     () =>
       data.filter(
         r =>
-          r.BNK_Amount === null ||
-          r.BNK_Amount === undefined ||
-          r.ScenarioCode !== "FULL_MATCH"
+          r.bnk_amount === null ||
+          r.bnk_amount === undefined ||
+          r.scenario_code !== "FULL_MATCH"
       ),
     [data]
   )
 
   const mdrReport = useMemo(() => {
-    const digital = data.filter(r => r.HIS_PaymentMode !== "Cash")
+    const digital = data.filter(
+      r => r.his_payment_mode !== "Cash"
+    )
+
     return {
-      gross: sum(digital, "PAYTM_Amount"),
-      mdr: sum(digital, "PAYTM_mdrAmount"),
-      gst: sum(digital, "PAYTM_gstAmount"),
-      net: sum(digital, "PAYTM_NetAmount"),
+      gross: sum(digital, "paytm_amount"),
+      mdr: sum(digital, "paytm_mdr_amount"),
+      gst: sum(digital, "paytm_gst_amount"),
+      net: sum(digital, "paytm_net_amount"),
     }
   }, [data])
 
   const modeSummary = useMemo(() => {
-    const byMode = groupBy(data, "HIS_PaymentMode")
+    const byMode = groupBy(data, "his_payment_mode")
+
     return Object.entries(byMode).map(([mode, rows]) => ({
       mode,
-      amount: sum(rows, "HIS_Amount"),
+      amount: sum(rows, "his_amount"),
     }))
   }, [data])
 
@@ -126,8 +130,8 @@ export default function ReportsPage() {
     () =>
       data.filter(
         r =>
-          (!r.PAYTM_Amount && r.HIS_Amount) ||
-          (r.PAYTM_Amount && !r.HIS_Amount)
+          (!r.paytm_amount && r.his_amount) ||
+          (r.paytm_amount && !r.his_amount)
       ),
     [data]
   )
@@ -141,10 +145,10 @@ export default function ReportsPage() {
     }
 
     data.forEach(r => {
-      if (r.BNK_Amount) return
+      if (r.bnk_amount) return
 
-      const days = Number(r.Days_To_Bank || 0)
-      const amt = Number(r.HIS_Amount || 0)
+      const days = Number(r.days_to_bank || 0)
+      const amt = Number(r.his_amount || 0)
 
       if (days === 0) buckets["T+0"] += amt
       else if (days === 1) buckets["T+1"] += amt
@@ -155,13 +159,9 @@ export default function ReportsPage() {
     return buckets
   }, [data])
 
-  /* =====================================================
-     SAFE CONDITIONAL RENDER
-  ===================================================== */
+  /* ---------------- LOADING ---------------- */
 
-  if (loading) {
-    return <Typography>Loading reports…</Typography>
-  }
+  if (loading) return <Typography>Loading reports…</Typography>
 
   /* ---------------- PAGE ---------------- */
 
@@ -173,9 +173,16 @@ export default function ReportsPage() {
 
       <Section title="Daily Collection vs Settlement">
         <SimpleTable
-          headers={["Date", "HIS Billed", "Paytm", "Cash", "Bank", "Difference"]}
+          headers={[
+            "Date",
+            "HIS Billed",
+            "Paytm",
+            "Cash",
+            "Bank",
+            "Difference",
+          ]}
           rows={dailyReport.map(r => [
-            formatDateTime(Number(r.date)), // ✅ FIXED HERE
+            formatDateTime(Number(r.date)),
             r.his,
             r.paytm,
             r.cash,
@@ -187,22 +194,38 @@ export default function ReportsPage() {
 
       <Section title="Unsettled / Exception Report">
         <SimpleTable
-          headers={["Transaction", "Mode", "HIS", "Bank", "Status"]}
+          headers={[
+            "Transaction",
+            "Mode",
+            "HIS",
+            "Bank",
+            "Status",
+          ]}
           rows={exceptionRows.map(r => [
-            r.TransactionID,
-            r.HIS_PaymentMode,
-            r.HIS_Amount,
-            r.BNK_Amount ?? "Pending",
-            r.ScenarioCode,
+            r.transaction_id,
+            r.his_payment_mode,
+            r.his_amount,
+            r.bnk_amount ?? "Pending",
+            r.scenario_code,
           ])}
         />
       </Section>
 
       <Section title="MDR & GST Impact">
         <SimpleTable
-          headers={["Gross", "MDR", "GST", "Net Received"]}
+          headers={[
+            "Gross",
+            "MDR",
+            "GST",
+            "Net Received",
+          ]}
           rows={[
-            [mdrReport.gross, mdrReport.mdr, mdrReport.gst, mdrReport.net],
+            [
+              mdrReport.gross,
+              mdrReport.mdr,
+              mdrReport.gst,
+              mdrReport.net,
+            ],
           ]}
         />
       </Section>
@@ -210,17 +233,24 @@ export default function ReportsPage() {
       <Section title="Mode-wise Collection Summary">
         <SimpleTable
           headers={["Mode", "Collected Amount"]}
-          rows={modeSummary.map(r => [r.mode, r.amount])}
+          rows={modeSummary.map(r => [
+            r.mode,
+            r.amount,
+          ])}
         />
       </Section>
 
       <Section title="HIS vs Payment Gateway Mismatch">
         <SimpleTable
-          headers={["Transaction", "HIS Amount", "Paytm Amount"]}
+          headers={[
+            "Transaction",
+            "HIS Amount",
+            "Paytm Amount",
+          ]}
           rows={mismatchRows.map(r => [
-            r.TransactionID,
-            r.HIS_Amount ?? "Missing",
-            r.PAYTM_Amount ?? "Missing",
+            r.transaction_id,
+            r.his_amount ?? "Missing",
+            r.paytm_amount ?? "Missing",
           ])}
         />
       </Section>
@@ -246,7 +276,9 @@ function Section({
 }) {
   return (
     <div className="rounded-lg border bg-white p-6 shadow-sm space-y-3">
-      <Typography className="font-medium text-gray-900">{title}</Typography>
+      <Typography className="font-medium text-gray-900">
+        {title}
+      </Typography>
       {children}
     </div>
   )
@@ -275,7 +307,9 @@ function SimpleTable({
           <tr key={i} className={i % 2 ? "bg-gray-50" : "bg-white"}>
             {r.map((c, j) => (
               <td key={j} className="border px-3 py-2">
-                {typeof c === "number" ? `₹ ${c.toLocaleString()}` : c}
+                {typeof c === "number"
+                  ? `₹ ${c.toLocaleString()}`
+                  : c}
               </td>
             ))}
           </tr>
