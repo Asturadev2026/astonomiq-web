@@ -97,19 +97,9 @@ export default function MISPage() {
 
   const columns = COLUMN_ORDER.filter(col => col in sortedData[0])
 
+  /* ✅ UPDATED: No formatting, render exactly as stored */
   const formatValue = (val: any) => {
     if (val === null || val === undefined) return ""
-
-    // Excel serial date
-    if (!isNaN(Number(val)) && Number(val) > 40000 && Number(val) < 50000) {
-      const date = new Date((Number(val) - 25569) * 86400 * 1000)
-      return date.toLocaleString("en-IN")
-    }
-
-    if (typeof val === "number") {
-      return val.toLocaleString()
-    }
-
     return String(val)
   }
 
