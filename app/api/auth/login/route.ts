@@ -3,40 +3,59 @@ import { createClient } from '@/utils/supabase/server'
 import { z } from 'zod'
 
 const loginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(1),
 })
 
 export async function POST(request: Request) {
-    try {
-        const body = await request.json()
-        const result = loginSchema.safeParse(body)
+  try {
+    const body = await request.json()
 
-        if (!result.success) {
-            return NextResponse.json(
-                { error: 'Invalid input', details: result.error.flatten() },
-                { status: 400 }
-            )
-        }
+    const parsed = loginSchema.safeParse(body)
 
-        const { email, password } = result.data
-        const supabase = await createClient()
-
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
-
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 401 })
-        }
-
-        return NextResponse.json({ success: true }, { status: 200 })
-    } catch (error) {
-        console.error('Login error:', error)
-        return NextResponse.json(
-            { error: 'Internal Server Error' },
-            { status: 500 }
-        )
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid email or password format' },
+        { status: 400 }
+      )
     }
+
+    const { email, password } = parsed.data
+
+    // ✅ Create Supabase server client (SSR-safe)
+    const supabase = await createClient()
+
+    // ✅ Sign in user
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 401 }
+      )
+    }
+
+    if (!data.session) {
+      return NextResponse.json(
+        { error: 'Login failed. No session returned.' },
+        { status: 401 }
+      )
+    }
+
+    // ✅ Session cookie is automatically set by SSR client
+    return NextResponse.json(
+      { success: true },
+      { status: 200 }
+    )
+
+  } catch (err) {
+    console.error('Login error:', err)
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    )
+  }
 }

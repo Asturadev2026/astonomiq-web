@@ -54,32 +54,37 @@ export function LoginForm() {
     }, [setValue])
 
     async function onSubmit(data: LoginFormValues) {
-        setLoading(true)
-        try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: data.email,
-                    password: data.password,
-                }),
-            })
+    setLoading(true)
 
-            const result = await response.json()
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: data.email,
+                password: data.password,
+            }),
+        })
 
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to login')
-            }
+        const result = await response.json()
 
-            toast.success("Logged in successfully")
-            router.push("/dashboard")
-        } catch (error) {
-            console.error(error)
-            toast.error(error instanceof Error ? error.message : "Failed to login")
-        } finally {
-            setLoading(false)
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to login')
         }
+
+        toast.success("Logged in successfully")
+
+        // 🔥 CRITICAL FIX:
+        // Force full reload so Supabase SSR session cookie hydrates properly
+        window.location.href = "/dashboard"
+
+    } catch (error) {
+        console.error(error)
+        toast.error(error instanceof Error ? error.message : "Failed to login")
+    } finally {
+        setLoading(false)
     }
+}
 
     return (
         <div className="w-full max-w-[440px] p-8 bg-white rounded-2xl shadow-[0px_4px_24px_rgba(0,0,0,0.06)] border border-gray-100">
