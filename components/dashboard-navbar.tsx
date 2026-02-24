@@ -46,7 +46,31 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
   const supabase = createClient()
 
   const [date, setDate] = React.useState<Date | undefined>(new Date())
-  const [open, setOpen] = React.useState(false) // ✅ control popover
+  const [open, setOpen] = React.useState(false)
+
+  const [profile, setProfile] = React.useState<{
+    email: string
+    hospital_id: string
+  } | null>(null)
+
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("/api/auth/user", {
+          cache: "no-store",
+        })
+        const data = await res.json()
+
+        if (!data.error) {
+          setProfile(data)
+        }
+      } catch (err) {
+        console.error("Profile fetch error:", err)
+      }
+    }
+
+    fetchProfile()
+  }, [])
 
   async function handleLogout() {
     try {
@@ -86,10 +110,10 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
         })
       )
 
-      setOpen(false) // ✅ close calendar after OK
+      setOpen(false)
     } catch (err) {
       console.error("API error:", err)
-      setOpen(false) // close even on error
+      setOpen(false)
     }
   }
 
@@ -148,7 +172,6 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
               />
 
               <div className="mt-3 flex justify-between">
-                {/* OPTIONAL CLEAR BUTTON */}
                 <Button
                   size="sm"
                   variant="outline"
@@ -169,16 +192,62 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
           </Popover>
         </div>
 
+        {/* PROFILE DROPDOWN */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarFallback>JD</AvatarFallback>
+                <AvatarFallback>
+  {profile?.email?.[0]?.toUpperCase() || "U"}
+</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+
+          <DropdownMenuContent
+            align="end"
+            className="w-72 p-0 overflow-hidden rounded-xl shadow-xl border"
+          >
+            {profile && (
+              <>
+                {/* Profile Header */}
+                <div className="px-5 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-blue-600 text-white">
+                        {profile.email?.[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {profile.email}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Account
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                      Hospital ID
+                    </p>
+                    <div className="bg-white border rounded-md px-3 py-1.5 text-xs font-mono text-gray-700 break-all">
+                      {profile.hospital_id}
+                    </div>
+                  </div>
+                </div>
+
+                <DropdownMenuSeparator />
+              </>
+            )}
+
+            {/* Logout */}
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-red-600 font-medium py-3 px-4 focus:bg-red-50"
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
