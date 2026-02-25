@@ -267,7 +267,8 @@ export default function DashboardPage() {
           <MetricCard title="Matched Transactions" value={metrics.matched.toLocaleString()} subValue="MATCHED" trend={metrics.matchedTrend} icon={ShieldCheck} />
           <MetricCard title="Unmatched" value={metrics.unmatched.toLocaleString()} subValue="DISCREPANCIES" trend={metrics.unmatchedTrend} icon={AlertCircle} />
           <MetricCard title="Match Percentage" value={`${metrics.matchPct}%`} subValue="ACCURACY" trend={metrics.matchPctTrend} icon={BarChart3} />
-          <MetricCard title="Manual Effort Saved" value="36 hrs" subValue="TIME SAVED" trend={metrics.effortTrend} icon={History} />
+          <MetricCard title="Manual Effort Saved"   value={`${Math.floor(metrics.total / 20)} hrs`}
+ subValue="TIME SAVED" trend={metrics.effortTrend} icon={History} />
           <MetricCard title="Revenue Leakage" value={`₹ ${metrics.leakage.toLocaleString()}`} subValue="AT RISK" trend={metrics.leakageTrend} icon={Search} />
         </div>
 
