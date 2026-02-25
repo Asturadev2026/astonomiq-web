@@ -9,16 +9,17 @@ export default function Home() {
       <div className="relative w-full lg:w-1/2 bg-[#007AFF] flex flex-col items-center justify-center p-8 lg:p-12 overflow-hidden">
         <div className="w-full max-w-lg z-10 flex flex-col items-center lg:items-start text-center lg:text-left">
           {/* Logo */}
-          <div className="mb-12">
-            <Image
-              src="/logo.png"
-              alt="AstronomIQ Logo"
-              width={180}
-              height={40}
-              className="h-10 w-auto"
-              priority
-            />
-          </div>
+          {/* Logo */}
+<div className="mb-12 bg-white px-4 py-2 rounded-md">
+  <Image
+    src="/logo.png"
+    alt="AstronomIQ Logo"
+    width={180}
+    height={40}
+    className="h-10 w-auto"
+    priority
+  />
+</div>
 
           {/* Headline */}
           <Typography variant="h1" as="h1" className="text-white mb-4 leading-tight">

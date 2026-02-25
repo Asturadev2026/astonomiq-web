@@ -124,16 +124,16 @@ export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
           <Menu className="h-6 w-6 text-gray-600" />
         </Button>
 
-        <div className="bg-blue-700">
-          <Image
-            src="/logo.png"
-            alt="AstronomIQ Logo"
-            width={150}
-            height={32}
-            className="h-8 w-auto"
-            priority
-          />
-        </div>
+        <div>
+  <Image
+    src="/logo.png"
+    alt="AstronomIQ Logo"
+    width={150}
+    height={32}
+    className="h-8 w-auto"
+    priority
+  />
+</div>
       </div>
 
       <div className="hidden md:flex flex-1 max-w-xl mx-8">
