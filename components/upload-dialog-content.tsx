@@ -71,12 +71,12 @@ export function UploadDialogContent({
       formData.append("email", "Apoorwa@astura.ai")
 
       const res = await fetch(
-        "https://asturaintelligence.app.n8n.cloud/webhook/reconciliation/run",
-        {
-          method: "POST",
-          body: formData, // ⚠️ multipart/form-data (DO NOT set headers)
-        }
-      )
+  "/api/reconciliation/run",
+  {
+    method: "POST",
+    body: formData, // ⚠️ multipart/form-data (DO NOT set headers)
+  }
+)
 
       if (!res.ok) {
         const text = await res.text()

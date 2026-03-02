@@ -1,43 +1,47 @@
 import { NextResponse } from "next/server";
 
-const N8N_WEBHOOK_URL =
-  "https://asturaintelligence.app.n8n.cloud/webhook/reconciliation/run";
+const N8N_WEBHOOK_URL = process.env.N8N_RECON_URL;
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    if (!N8N_WEBHOOK_URL) {
+      throw new Error("N8N_RECON_URL is not configured");
+    }
 
-    // ✅ Basic payload validation (prevents silent failures)
-    if (!body || !body.files || !body.email) {
+    // ✅ Read multipart form data
+    const formData = await req.formData();
+
+    const his = formData.get("his");
+    const paytm = formData.get("paytm");
+    const bank = formData.get("bank");
+    const email = formData.get("email");
+
+    if (!his || !paytm || !bank || !email) {
       return NextResponse.json(
-        { error: "Missing email or files in request body" },
+        { error: "Missing required files or email" },
         { status: 400 }
       );
     }
 
+    // Forward the same FormData to n8n
+    const forwardForm = new FormData();
+    forwardForm.append("his", his);
+    forwardForm.append("paytm", paytm);
+    forwardForm.append("bank", bank);
+    forwardForm.append("email", email);
+
     const n8nRes = await fetch(N8N_WEBHOOK_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+      body: forwardForm, // ⚠️ DO NOT set Content-Type
     });
 
     const text = await n8nRes.text();
 
-    // ✅ Handle non-JSON responses safely
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
     if (!n8nRes.ok) {
       return NextResponse.json(
         {
-          error: "n8n workflow failed",
-          details: data,
+          success: false,
+          error: text || "n8n workflow failed",
         },
         { status: 500 }
       );
@@ -45,8 +49,9 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      n8n: data,
+      message: "Files forwarded to n8n successfully",
     });
+
   } catch (error) {
     console.error("Reconciliation trigger failed:", error);
 
