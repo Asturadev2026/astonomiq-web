@@ -22,10 +22,15 @@ export async function POST(request: Request) {
 
     const { email, password } = parsed.data
 
-    // ✅ Create Supabase server client (SSR-safe)
+    // 🔥 ADD DEBUG LOGS HERE
+    console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
+    console.log(
+      "KEY PREFIX:",
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY?.slice(0, 20)
+    )
+
     const supabase = await createClient()
 
-    // ✅ Sign in user
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,

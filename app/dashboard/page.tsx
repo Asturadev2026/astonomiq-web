@@ -249,10 +249,7 @@ export default function DashboardPage() {
               Generate Report
             </Button>
 
-            <Button variant="outline" className="bg-white border-gray-200 gap-2 shadow-sm">
-              <Eye className="h-4 w-4" />
-              View BRS
-            </Button>
+            
           </div>
 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 text-sm font-medium">

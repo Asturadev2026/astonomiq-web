@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
-const API_URL = "https://asturaintelligence.app.n8n.cloud/webhook/mis-data"
+const API_URL = "/api/mis";
 
 type ReconciliationItem = {
   transaction_id: string

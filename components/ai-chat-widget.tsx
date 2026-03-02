@@ -26,7 +26,7 @@ export default function AIChatWidget() {
 
     try {
       const res = await fetch(
-        "https://asturaintelligence.app.n8n.cloud/webhook/chat/query",
+        "/api/chat",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
