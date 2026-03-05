@@ -72,57 +72,104 @@ export default function ReportsPage() {
     return v
   }
 
+  const parseDate = (v: any) => {
+    if (!v) return null
+    if (!isNaN(Number(v))) {
+      return new Date((Number(v) - 25569) * 86400 * 1000)
+    }
+    const d = new Date(v)
+    return isNaN(d.getTime()) ? null : d
+  }
+
   /* =====================================================
-     ALL REPORT CALCULATIONS (FIXED TO SNAKE_CASE)
+     REPORT CALCULATIONS (UPDATED COLUMN NAMES)
   ===================================================== */
 
-  const dailyReport = useMemo(() => {
-    const byDate = groupBy(data, "his_date")
+  /* -------- DAILY COLLECTION VS SETTLEMENT (UPDATED) -------- */
 
-    return Object.entries(byDate).map(([date, rows]) => ({
+  const dailyReport = useMemo(() => {
+
+  const rowsWithDate = data.filter(r => r["Settlement Date"])
+
+  const byDate = rowsWithDate.reduce<Record<string, Row[]>>((acc, r) => {
+
+    const d = parseDate(r["Settlement Date"])
+    if (!d) return acc
+
+    const key = d.toISOString().split("T")[0]
+
+    acc[key] = acc[key] || []
+    acc[key].push(r)
+
+    return acc
+
+  }, {})
+
+  return Object.entries(byDate).map(([date, rows]) => {
+
+    const cashAmount = sum(
+      data.filter(r => {
+        const mode = String(r["Payment Mode"] || "").toLowerCase()
+        const billDate = parseDate(r["BILL Date"])
+        if (!billDate) return false
+
+        const billKey = billDate.toISOString().split("T")[0]
+
+        return mode === "cash" && billKey === date
+      }),
+      "HIS Gross Amount"
+    )
+
+    return {
       date,
-      his: sum(rows, "his_amount"),
-      paytm: sum(rows, "paytm_amount"),
-      cash: sum(
-        rows.filter(r => r.his_payment_mode === "Cash"),
-        "his_amount"
-      ),
-      bank: sum(rows, "bnk_amount"),
+
+      his: sum(rows, "HIS Gross Amount"),
+
+      paytm: sum(rows, "PAYTM Amount"),
+
+      cash: cashAmount,
+
+      bank: sum(rows, "Net Amount Credited"),
+
       difference:
-        sum(rows, "his_amount") - sum(rows, "bnk_amount"),
-    }))
-  }, [data])
+        sum(rows, "HIS Gross Amount") -
+        sum(rows, "Net Amount Credited"),
+    }
+
+  })
+
+}, [data])
 
   const exceptionRows = useMemo(
     () =>
       data.filter(
         r =>
-          r.bnk_amount === null ||
-          r.bnk_amount === undefined ||
-          r.scenario_code !== "FULL_MATCH"
+          r["Net Amount Credited"] === null ||
+          r["Net Amount Credited"] === undefined ||
+          r["ScenarioCode"] !== "FULL_MATCH"
       ),
     [data]
   )
 
   const mdrReport = useMemo(() => {
     const digital = data.filter(
-      r => r.his_payment_mode !== "Cash"
+      r => r["Payment Mode"] !== "Cash"
     )
 
     return {
-      gross: sum(digital, "paytm_amount"),
-      mdr: sum(digital, "paytm_mdr_amount"),
-      gst: sum(digital, "paytm_gst_amount"),
-      net: sum(digital, "paytm_net_amount"),
+      gross: sum(digital, "PAYTM Amount"),
+      mdr: sum(digital, "MDR Amount"),
+      gst: sum(digital, "GST Amount"),
+      net: sum(digital, "PAYTM Net Amount"),
     }
   }, [data])
 
   const modeSummary = useMemo(() => {
-    const byMode = groupBy(data, "his_payment_mode")
+    const byMode = groupBy(data, "Payment Mode")
 
     return Object.entries(byMode).map(([mode, rows]) => ({
       mode,
-      amount: sum(rows, "his_amount"),
+      amount: sum(rows, "HIS Gross Amount"),
     }))
   }, [data])
 
@@ -130,13 +177,16 @@ export default function ReportsPage() {
     () =>
       data.filter(
         r =>
-          (!r.paytm_amount && r.his_amount) ||
-          (r.paytm_amount && !r.his_amount)
+          (!r["PAYTM Amount"] && r["HIS Gross Amount"]) ||
+          (r["PAYTM Amount"] && !r["HIS Gross Amount"])
       ),
     [data]
   )
 
+  /* -------- AGING SETTLEMENT REPORT (UPDATED) -------- */
+
   const agingReport = useMemo(() => {
+
     const buckets: Record<string, number> = {
       "T+0": 0,
       "T+1": 0,
@@ -144,19 +194,37 @@ export default function ReportsPage() {
       "T+3+": 0,
     }
 
+    const settlementDates = data
+      .map(r => parseDate(r["Settlement Date"]))
+      .filter(Boolean) as Date[]
+
+    if (!settlementDates.length) return buckets
+
+    const latestDate = new Date(
+      Math.max(...settlementDates.map(d => d.getTime()))
+    )
+
     data.forEach(r => {
-      if (r.bnk_amount) return
 
-      const days = Number(r.days_to_bank || 0)
-      const amt = Number(r.his_amount || 0)
+      const settleDate = parseDate(r["Settlement Date"])
+      if (!settleDate) return
 
-      if (days === 0) buckets["T+0"] += amt
-      else if (days === 1) buckets["T+1"] += amt
-      else if (days === 2) buckets["T+2"] += amt
+      const diffDays = Math.floor(
+        (latestDate.getTime() - settleDate.getTime()) /
+        (1000 * 60 * 60 * 24)
+      )
+
+      const amt = Number(r["Net Amount Credited"] || 0)
+
+      if (diffDays === 2) buckets["T+0"] += amt
+      else if (diffDays === 1) buckets["T+1"] += amt
+      else if (diffDays === 0) buckets["T+2"] += amt
       else buckets["T+3+"] += amt
+
     })
 
     return buckets
+
   }, [data])
 
   /* ---------------- LOADING ---------------- */
@@ -182,7 +250,7 @@ export default function ReportsPage() {
             "Difference",
           ]}
           rows={dailyReport.map(r => [
-            formatDateTime(Number(r.date)),
+            formatDateTime(r.date),
             r.his,
             r.paytm,
             r.cash,
@@ -202,11 +270,11 @@ export default function ReportsPage() {
             "Status",
           ]}
           rows={exceptionRows.map(r => [
-            r.transaction_id,
-            r.his_payment_mode,
-            r.his_amount,
-            r.bnk_amount ?? "Pending",
-            r.scenario_code,
+            r["HIS Transaction ID"],
+            r["Payment Mode"],
+            r["HIS Gross Amount"],
+            r["Net Amount Credited"] ?? "Pending",
+            r["ScenarioCode"],
           ])}
         />
       </Section>
@@ -248,9 +316,9 @@ export default function ReportsPage() {
             "Paytm Amount",
           ]}
           rows={mismatchRows.map(r => [
-            r.transaction_id,
-            r.his_amount ?? "Missing",
-            r.paytm_amount ?? "Missing",
+            r["HIS Transaction ID"],
+            r["HIS Gross Amount"] ?? "Missing",
+            r["PAYTM Amount"] ?? "Missing",
           ])}
         />
       </Section>

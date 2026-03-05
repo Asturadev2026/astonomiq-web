@@ -26,16 +26,32 @@ export function ReconciliationSummary() {
   const fetchData = async () => {
     try {
       const res = await fetch(API_URL)
-      const data = await res.json()
+      const response = await res.json()
+
+      // ✅ Ensure data is always an array
+      const data = Array.isArray(response) ? response : []
+
+      // 🔥 MAP DB FORMAT → UI FORMAT
+      const mappedData: ReconciliationItem[] = data.map((row: any) => ({
+        transaction_id: row["HIS Transaction ID"],
+        order_id: row["BILL Number"],
+        paytm_source: row["PAYTM Transaction ID"],
+        bnk_source: row["Net Amount Credited"],
+        scenario_code: row["ScenarioCode"],
+        result: row["Result"],
+        justification: row["Justification"],
+        created_at: row["created_at"]
+      }))
 
       // 🔥 FRONTEND FILTER
-      const filteredData = data.filter(
+      const filteredData = mappedData.filter(
         (item: ReconciliationItem) => item.result !== "Reconciled"
       )
 
       setItems(filteredData)
     } catch (err) {
       console.error(err)
+      setItems([])
     }
   }
 
@@ -100,11 +116,10 @@ export function ReconciliationSummary() {
                 </div>
               </div>
 
-              {/* 🔥 Expanded Row */}
+              {/* Expanded Row */}
               {expandedRow === item.transaction_id && (
   <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b">
 
-    {/* Top Grid Info */}
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-3">
 
       <div>
@@ -129,12 +144,11 @@ export function ReconciliationSummary() {
       <div>
         <p className="text-gray-400 uppercase tracking-wide">Created</p>
         <p className="font-medium text-gray-800">
-          {new Date(item.created_at).toLocaleString()}
+          {item.created_at ? new Date(item.created_at).toLocaleString() : "—"}
         </p>
       </div>
     </div>
 
-    {/* Status Row */}
     <div className="flex flex-wrap items-center gap-3 mb-3">
 
       <span className="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">
@@ -152,7 +166,6 @@ export function ReconciliationSummary() {
       </span>
     </div>
 
-    {/* Justification */}
     <div className="bg-white rounded-md p-3 text-xs text-gray-700 leading-relaxed border">
       <span className="font-semibold text-gray-500 mr-1">
         Justification:
@@ -168,7 +181,6 @@ export function ReconciliationSummary() {
 
         </div>
 
-        {/* Show More Button */}
         {visibleCount < items.length && (
           <div className="flex justify-end p-4">
             <Button
