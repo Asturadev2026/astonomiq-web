@@ -64,18 +64,41 @@ export default function ReconciliationPage() {
       ? `₹ ${Number(v).toLocaleString()}`
       : "-"
 
+  /* -------- UPDATED COLOR CODING -------- */
+
   const statusBadge = (code: string) => {
-    if (code === "FULL_MATCH" || code === "SPLIT_PAYMENT_FULL_MATCH")
-      return "bg-green-100 text-green-700"
 
-    if (code === "TRIANGLE_DISCREPANCY" || code === "SPLIT_PAYMENT_PARTIAL_MATCH")
-      return "bg-yellow-100 text-yellow-700"
+  // SUCCESS (Green)
+  if (
+    code === "FULL_MATCH" ||
+    code === "SPLIT_PAYMENT_MATCH" ||
+    code === "PARTIAL_PAYMENT_MATCH"
+  ) {
+    return "bg-green-100 text-green-700"
+  }
 
-    if (code === "SPLIT_PAYMENT_MISMATCH")
-      return "bg-red-100 text-red-700"
+  // WARNING (Yellow)
+  if (
+    code === "TRIANGLE_DISCREPANCY" ||
+    code === "PENDING_BANK_SETTLEMENT"
+  ) {
+    return "bg-yellow-100 text-yellow-700"
+  }
 
+  // ERROR (Red)
+  if (
+    code === "LATE_SETTLEMENT" ||
+    code === "SPLIT_PAYMENT_MISMATCH" ||
+    code === "PARTIAL_PAYMENT_MISMATCH" ||
+    code === "MISSING_PAYTM" ||
+    code === "UNPOSTED_IN_HIS" ||
+    code === "UNKNOWN"
+  ) {
     return "bg-red-100 text-red-700"
   }
+
+  return "bg-gray-100 text-gray-700"
+}
 
   const formatDateTime = (v: any) => {
     if (!v) return "-"
