@@ -1,5 +1,5 @@
 "use client";
-
+import { createClient } from "@/utils/supabase/client"
 import { useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { MetricCard } from "@/components/metric-card";
@@ -184,29 +184,46 @@ export default function DashboardPage() {
 
   const metrics = useMemo(() => computeMetrics(data), [data]);
 
-  const handleGenerateReport = async () => {
-    if (!selectedDate) return;
+ const handleGenerateReport = async () => {
+  try {
 
-    const res = await fetch(`/api/mis?date=${selectedDate}`, {
+    /* ================= FETCH MIS DATA ================= */
+
+    const url = selectedDate
+      ? `/api/mis?date=${selectedDate}`
+      : `/api/mis`;
+
+    const res = await fetch(url, {
       cache: "no-store",
     });
 
+    if (!res.ok) {
+      alert("Failed to fetch MIS data");
+      return;
+    }
+
     const json = await res.json();
-    const rows = Array.isArray(json) ? json : [];
 
-    downloadCSV(rows);
-  };
+    const rows = Array.isArray(json)
+      ? json
+      : Array.isArray(json?.rows)
+      ? json.rows
+      : [];
 
-  function downloadCSV(rows: Row[]) {
-    if (!rows.length) return;
+    if (!rows.length) {
+      alert("No data available to download.");
+      return;
+    }
+
+    /* ================= GENERATE CSV ================= */
 
     const headers = Object.keys(rows[0]);
 
     const csv = [
       headers.join(","),
-      ...rows.map(row =>
+      ...rows.map((row: any) =>
         headers
-          .map(h => {
+          .map((h) => {
             const val = row[h];
             if (val === null || val === undefined) return "";
             return `"${String(val).replace(/"/g, '""')}"`;
@@ -215,18 +232,110 @@ export default function DashboardPage() {
       ),
     ].join("\n");
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;"
+    });
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `MIS_Report_${selectedDate || "All_Data"}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const urlBlob = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = urlBlob;
+    link.download = selectedDate
+      ? `MIS_Report_${selectedDate}.csv`
+      : `MIS_Report_All_Data.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(urlBlob);
+
+    /* ================= GET LOGGED USER ================= */
+
+    const supabase = createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const email = user?.email || "unknown"
+
+    /* ================= AUDIT LOG ================= */
+
+    try {
+
+      const auditRes = await fetch("/api/audit/log", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          action_type: "DOWNLOAD",
+          entity: "MIS_REPORT",
+          record_count: rows.length,
+          description: selectedDate
+            ? `MIS report downloaded for ${selectedDate}`
+            : "MIS report downloaded for ALL data"
+        })
+      });
+
+      if (!auditRes.ok) {
+        const text = await auditRes.text()
+        console.error("Audit logging failed:", text)
+      } else {
+        console.log("Audit logged successfully")
+      }
+
+    } catch (auditErr) {
+      console.error("Audit request error:", auditErr)
+    }
+
+  } catch (err) {
+    console.error("Report generation failed:", err);
+    alert("Report download failed");
+  }
+};
+
+function downloadCSV(rows: Row[]) {
+
+  if (!rows || rows.length === 0) {
+    alert("No data available to download.");
+    return;
   }
 
+  const headers = Object.keys(rows[0]);
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map(row =>
+      headers
+        .map(h => {
+          const val = row[h];
+          if (val === null || val === undefined) return "";
+          return `"${String(val).replace(/"/g, '""')}"`;
+        })
+        .join(",")
+    ),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;"
+  });
+
+  const url = window.URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `MIS_Report_${selectedDate || "All_Data"}.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url);
+  }, 100);
+}
   return (
     <div className="flex flex-col min-h-screen bg-gray-50/50">
       <div className="flex-1 space-y-8">
@@ -234,10 +343,7 @@ export default function DashboardPage() {
         {/* ACTION BAR */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-sm">
-              <Plus className="h-4 w-4" />
-              New Task
-            </Button>
+            
 
             <Dialog>
               <DialogTrigger asChild>
