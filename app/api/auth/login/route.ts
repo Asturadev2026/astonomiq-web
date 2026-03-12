@@ -9,6 +9,7 @@ const loginSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+
     const body = await request.json()
 
     const parsed = loginSchema.safeParse(body)
@@ -22,7 +23,6 @@ export async function POST(request: Request) {
 
     const { email, password } = parsed.data
 
-    // 🔥 ADD DEBUG LOGS HERE
     console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
     console.log(
       "KEY PREFIX:",
@@ -50,14 +50,44 @@ export async function POST(request: Request) {
       )
     }
 
-    // ✅ Session cookie is automatically set by SSR client
+    /* ================= AUDIT LOG INSERT ================= */
+
+    try {
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id,email")
+        .eq("email", email)
+        .single()
+
+      if (profile) {
+
+        await supabase.from("audit_logs").insert({
+          user_id: profile.id,
+          email: profile.email,
+          action_type: "LOGIN",
+          entity: "AUTH",
+          record_count: 0,
+          description: "User logged into system"
+        })
+
+      }
+
+    } catch (auditErr) {
+      console.error("Audit log error:", auditErr)
+    }
+
+    /* ================= SUCCESS ================= */
+
     return NextResponse.json(
       { success: true },
       { status: 200 }
     )
 
   } catch (err) {
+
     console.error('Login error:', err)
+
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

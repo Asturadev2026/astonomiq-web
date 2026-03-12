@@ -71,17 +71,46 @@ export function UploadDialogContent({
       formData.append("email", "Apoorwa@astura.ai")
 
       const res = await fetch(
-  "/api/reconciliation/run",
-  {
-    method: "POST",
-    body: formData, // ⚠️ multipart/form-data (DO NOT set headers)
-  }
-)
+        "/api/reconciliation/run",
+        {
+          method: "POST",
+          body: formData,
+        }
+      )
 
       if (!res.ok) {
         const text = await res.text()
         throw new Error(text || "n8n webhook failed")
       }
+
+      /* ================= AUDIT LOGGING ================= */
+
+      try {
+
+        const totalFiles =
+          (files.his ? 1 : 0) +
+          (files.paytm ? 1 : 0) +
+          (files.bank ? 1 : 0)
+
+        await fetch("/api/audit/log", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: "Apoorwa@astura.ai",
+            action_type: "UPLOAD",
+            entity: "RECONCILIATION_FILES",
+            record_count: totalFiles,
+            description: "HIS, Paytm and Bank reconciliation files uploaded"
+          }),
+        })
+
+      } catch (auditErr) {
+        console.error("Audit logging failed:", auditErr)
+      }
+
+      /* ================= END AUDIT ================= */
 
       onUploadComplete?.()
 
