@@ -34,11 +34,87 @@ export function ReconciliationSummary() {
   const [emailBody, setEmailBody] = useState<Record<string, string>>({})
   const [editingMail, setEditingMail] = useState<string | null>(null)
 
-  function detectSource(row: any) {
-    if (!row["PAYTM Transaction ID"]) return "Paytm"
-    if (!row["Net Amount Credited"]) return "Bank"
-    return "HIS"
+  function detectSource(row: any, allRows: any[]) {
+
+  const scenario = row["ScenarioCode"]
+
+  const hisGross = Number(row["HIS Gross Amount"] || 0)
+  const hisNet = Number(row["HIS Net Amount"] || 0)
+  const discount = Number(row["Discount"] || 0)
+
+  const paytmNet = Number(row["PAYTM Net Amount"] || 0)
+  const bankNet = Number(row["Net Amount Credited"] || 0)
+
+  const billNo = row["BILL Number"]
+
+  const rowsSameBill = allRows.filter(r => r["BILL Number"] === billNo)
+
+  const sumNetSameBill = rowsSameBill.reduce(
+    (s, r) => s + Number(r["HIS Net Amount"] || 0),
+    0
+  )
+
+  /* ================= TRIANGLE DISCREPANCY ================= */
+
+  if (scenario === "TRIANGLE_DISCREPANCY") {
+
+    if (bankNet !== paytmNet) {
+      return "Bank"
+    }
+
+    if (paytmNet !== hisNet) {
+      return "Paytm"
+    }
+
+    if ((hisNet - discount) !== hisGross) {
+      return "HIS"
+    }
+
   }
+
+  /* ================= PARTIAL PAYMENT ================= */
+
+  if (scenario === "PARTIAL_PAYMENT_MISMATCH" || scenario === "PARTIAL_PAYMENT_MATCH") {
+
+    if ((sumNetSameBill - discount) !== hisGross) {
+      return "HIS"
+    }
+
+    if (bankNet !== paytmNet) {
+      return "Bank"
+    }
+
+    if (paytmNet !== hisNet) {
+      return "Paytm"
+    }
+
+  }
+
+  /* ================= SPLIT PAYMENT ================= */
+
+  if (scenario === "SPLIT_PAYMENT_MISMATCH" || scenario === "SPLIT_PAYMENT_MATCH") {
+
+    if ((sumNetSameBill - discount) !== hisGross) {
+      return "HIS"
+    }
+
+    if (bankNet !== paytmNet) {
+      return "Bank"
+    }
+
+    if (paytmNet !== hisNet) {
+      return "Paytm"
+    }
+
+  }
+
+  /* ================= DEFAULT ================= */
+
+  if (!row["PAYTM Transaction ID"]) return "Paytm"
+  if (!row["Net Amount Credited"]) return "Bank"
+
+  return "HIS"
+}
 
   function generateEmailBody(item: ReconciliationItem) {
 
@@ -102,17 +178,24 @@ AstonomiQ`
 
         const mappedData: ReconciliationItem[] = data.map((row: any) => ({
 
-          transaction_id: row["HIS Transaction ID"],
-          order_id: row["BILL Number"],
-          paytm_source: row["PAYTM Transaction ID"],
-          bnk_source: row["Net Amount Credited"],
-          scenario_code: row["ScenarioCode"],
-          result: row["Result"],
-          justification: row["Justification"],
-          created_at: row["created_at"],
-          discrepancy_source: detectSource(row)
+  transaction_id: row["HIS Transaction ID"],
+  order_id: row["BILL Number"],
 
-        }))
+  paytm_source: row["PAYTM Transaction ID"],
+
+  bnk_source: row["ARN"] || row["Net Amount Credited"],
+
+  scenario_code: row["ScenarioCode"],
+
+  result: row["Result"],
+
+  justification: `Amount mismatch (HIS_NET=${row["HIS Net Amount"]}, PAYTM_NET=${row["PAYTM Net Amount"]}, BANK_NET=${row["Net Amount Credited"]}). ${row["Justification"] || ""}`,
+
+  created_at: row["created_at"],
+
+  discrepancy_source: detectSource(row, data)
+
+}))
 
         const filteredData = mappedData.filter(
           (item: ReconciliationItem) => item.result !== "Reconciled"

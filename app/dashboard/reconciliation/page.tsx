@@ -29,31 +29,42 @@ export default function ReconciliationPage() {
   /* ---------------- SUMMARY METRICS ---------------- */
 
   const summary = useMemo(() => {
-    const total = data.length
+  const total = data.length
 
-    const autoMatched = data.filter(
-      d => d.ScenarioCode === "FULL_MATCH"
-    ).length
+  const autoMatchedScenarios = [
+    "FULL_MATCH",
+    "PARTIAL_PAYMENT_MATCH",
+    "SPLIT_PAYMENT_MATCH"
+  ]
 
-    const partial = data.filter(d =>
-      ["TRIANGLE_DISCREPANCY", "PARTIAL_MATCH", "SPLIT_PAYMENT_PARTIAL_MATCH"].includes(
-        d.ScenarioCode
-      )
-    ).length
+  const partialScenarios = [
+    "LATE_SETTLEMENT"
+  ]
 
-    const unmatched = total - autoMatched - partial
+  const autoMatched = data.filter(d =>
+    autoMatchedScenarios.includes(d.ScenarioCode)
+  ).length
 
-    const valueAtRisk = data
-      .filter(d => d.ScenarioCode !== "FULL_MATCH")
-      .reduce((sum, d) => {
-        const diff =
-          Number(d["HIS Gross Amount"] || 0) -
-          Number(d["Net Amount Credited"] || 0)
-        return sum + Math.abs(diff)
-      }, 0)
+  const partial = data.filter(d =>
+    partialScenarios.includes(d.ScenarioCode)
+  ).length
 
-    return { total, autoMatched, partial, unmatched, valueAtRisk }
-  }, [data])
+  const unmatched = data.filter(d =>
+    !autoMatchedScenarios.includes(d.ScenarioCode) &&
+    !partialScenarios.includes(d.ScenarioCode)
+  ).length
+
+  const valueAtRisk = data
+    .filter(d => !autoMatchedScenarios.includes(d.ScenarioCode))
+    .reduce((sum, d) => {
+      const diff =
+        Number(d["HIS Net Amount"] || 0) -
+        Number(d["Net Amount Credited"] || 0)
+      return sum + Math.abs(diff)
+    }, 0)
+
+  return { total, autoMatched, partial, unmatched, valueAtRisk }
+}, [data])
 
   if (loading) return <Typography>Loading reconciliation…</Typography>
 

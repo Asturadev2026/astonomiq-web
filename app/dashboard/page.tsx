@@ -61,16 +61,27 @@ function computeMetrics(data: Row[]) {
 
   const total = data.length;
 
-  const matched = data.filter(r => r.Result === "Reconciled").length;
+  /* ================= MATCH LOGIC (SCENARIO CODE) ================= */
 
-  const unmatched = total - matched;
+  const matchedScenarios = new Set([
+    "FULL_MATCH",
+    "LATE_SETTLEMENT",
+    "PARTIAL_PAYMENT_MATCH",
+    "SPLIT_PAYMENT_MATCH"
+  ]);
+
+  const matched = data.filter(r => matchedScenarios.has(r.ScenarioCode)).length;
+
+  const unmatched = data.filter(r => !matchedScenarios.has(r.ScenarioCode)).length;
 
   const matchPct = total
     ? Number(((matched / total) * 100).toFixed(1))
     : 0;
 
+  /* ================= REVENUE LEAKAGE ================= */
+
   const leakage = data.reduce((sum, r) => {
-    if (r.Result === "Reconciled") return sum;
+    if (matchedScenarios.has(r.ScenarioCode)) return sum;
 
     const hisAmount = Number(r["HIS Net Amount"] || 0);
     const bankAmount = Number(r["Net Amount Credited"] || 0);
