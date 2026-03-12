@@ -32,21 +32,23 @@ export default function ReconciliationPage() {
     const total = data.length
 
     const autoMatched = data.filter(
-      d => d.scenario_code === "FULL_MATCH"
+      d => d.ScenarioCode === "FULL_MATCH"
     ).length
 
     const partial = data.filter(d =>
-      ["TRIANGLE_DISCREPANCY", "PARTIAL_MATCH"].includes(d.scenario_code)
+      ["TRIANGLE_DISCREPANCY", "PARTIAL_MATCH", "SPLIT_PAYMENT_PARTIAL_MATCH"].includes(
+        d.ScenarioCode
+      )
     ).length
 
     const unmatched = total - autoMatched - partial
 
     const valueAtRisk = data
-      .filter(d => d.scenario_code !== "FULL_MATCH")
+      .filter(d => d.ScenarioCode !== "FULL_MATCH")
       .reduce((sum, d) => {
         const diff =
-          Number(d.his_amount || 0) -
-          Number(d.bnk_amount || 0)
+          Number(d["HIS Gross Amount"] || 0) -
+          Number(d["Net Amount Credited"] || 0)
         return sum + Math.abs(diff)
       }, 0)
 
@@ -58,15 +60,45 @@ export default function ReconciliationPage() {
   /* ---------------- HELPERS ---------------- */
 
   const formatAmount = (v: any) =>
-    typeof v === "number" ? `₹ ${v.toLocaleString()}` : "-"
+    typeof v === "number" || !isNaN(Number(v))
+      ? `₹ ${Number(v).toLocaleString()}`
+      : "-"
+
+  /* -------- UPDATED COLOR CODING -------- */
 
   const statusBadge = (code: string) => {
-    if (code === "FULL_MATCH")
-      return "bg-green-100 text-green-700"
-    if (code === "TRIANGLE_DISCREPANCY")
-      return "bg-yellow-100 text-yellow-700"
+
+  // SUCCESS (Green)
+  if (
+    code === "FULL_MATCH" ||
+    code === "SPLIT_PAYMENT_MATCH" ||
+    code === "PARTIAL_PAYMENT_MATCH"
+  ) {
+    return "bg-green-100 text-green-700"
+  }
+
+  // WARNING (Yellow)
+  if (
+    code === "TRIANGLE_DISCREPANCY" ||
+    code === "PENDING_BANK_SETTLEMENT"
+  ) {
+    return "bg-yellow-100 text-yellow-700"
+  }
+
+  // ERROR (Red)
+  if (
+    code === "LATE_SETTLEMENT" ||
+    code === "SPLIT_PAYMENT_MISMATCH" ||
+    code === "PARTIAL_PAYMENT_MISMATCH" ||
+    code === "MISSING_PAYTM" ||
+    code === "UNPOSTED_IN_HIS" ||
+    code === "UNKNOWN"
+  ) {
     return "bg-red-100 text-red-700"
   }
+
+  return "bg-gray-100 text-gray-700"
+}
 
   const formatDateTime = (v: any) => {
     if (!v) return "-"
@@ -116,62 +148,62 @@ export default function ReconciliationPage() {
       {/* Table */}
       <div className="rounded-lg border bg-white shadow-sm">
         <div className="overflow-auto max-h-[65vh]">
-          <table className="min-w-full text-sm">
+          <table className="min-w-[1200px] text-sm">
             <thead className="sticky top-0 bg-gray-100">
               <tr>
-                <th className="px-3 py-2 text-left">HIS Bill No</th>
-                <th className="px-3 py-2 text-left">Patient ID</th>
-                <th className="px-3 py-2 text-left">Date</th>
-                <th className="px-3 py-2 text-left">Payment Mode</th>
-                <th className="px-3 py-2 text-right">HIS Amount</th>
-                <th className="px-3 py-2 text-right">Paytm Net</th>
-                <th className="px-3 py-2 text-right">Bank Credit</th>
-                <th className="px-3 py-2 text-right">Difference</th>
-                <th className="px-3 py-2 text-left">Match Status</th>
-                <th className="px-3 py-2 text-left">Match Logic</th>
+                <th className="px-4 py-2 text-left">HIS Bill No</th>
+                <th className="px-4 py-2 text-left">Patient ID</th>
+                <th className="px-4 py-2 text-left">Date</th>
+                <th className="px-4 py-2 text-left">Payment Mode</th>
+                <th className="px-4 py-2 text-right">HIS Amount</th>
+                <th className="px-4 py-2 text-right">Paytm Net</th>
+                <th className="px-4 py-2 text-right">Bank Credit</th>
+                <th className="px-4 py-2 text-right">Difference</th>
+                <th className="px-4 py-2 text-left">Match Status</th>
+                <th className="px-4 py-2 text-left">Match Logic</th>
               </tr>
             </thead>
 
             <tbody>
               {data.map((r, i) => {
                 const diff =
-                  Number(r.his_amount || 0) -
-                  Number(r.bnk_amount || 0)
+                  Number(r["HIS Gross Amount"] || 0) -
+                  Number(r["Net Amount Credited"] || 0)
 
                 return (
                   <tr
                     key={i}
                     className={i % 2 ? "bg-gray-50" : "bg-white"}
                   >
-                    <td className="px-3 py-2">{r.his_clean_id}</td>
-                    <td className="px-3 py-2">{r.his_patient_id}</td>
-                    <td className="px-3 py-2">
-                      {formatDateTime(r.his_date)}
+                    <td className="px-4 py-2">{r["BILL Number"]}</td>
+                    <td className="px-4 py-2">{r["UHID"]}</td>
+                    <td className="px-4 py-2">
+                      {formatDateTime(r["BILL Date"])}
                     </td>
-                    <td className="px-3 py-2">{r.his_payment_mode}</td>
-                    <td className="px-3 py-2 text-right">
-                      {formatAmount(r.his_amount)}
+                    <td className="px-4 py-2">{r["Payment Mode"]}</td>
+                    <td className="px-4 py-2 text-right">
+                      {formatAmount(r["HIS Gross Amount"])}
                     </td>
-                    <td className="px-3 py-2 text-right">
-                      {formatAmount(r.paytm_net_amount)}
+                    <td className="px-4 py-2 text-right">
+                      {formatAmount(r["PAYTM Net Amount"])}
                     </td>
-                    <td className="px-3 py-2 text-right">
-                      {formatAmount(r.bnk_amount)}
+                    <td className="px-4 py-2 text-right">
+                      {formatAmount(r["Net Amount Credited"])}
                     </td>
-                    <td className="px-3 py-2 text-right font-medium">
+                    <td className="px-4 py-2 text-right font-medium">
                       {formatAmount(diff)}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-2">
                       <span
                         className={`rounded px-2 py-1 text-xs font-semibold ${statusBadge(
-                          r.scenario_code
+                          r["ScenarioCode"]
                         )}`}
                       >
-                        {r.scenario_code}
+                        {r["ScenarioCode"]}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-gray-600">
-                      {r.justification ||
+                    <td className="px-4 py-2 text-xs text-gray-600">
+                      {r["Justification"] ||
                         "Matched on Bill No + Amount (±1 day)"}
                     </td>
                   </tr>

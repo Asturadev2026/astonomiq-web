@@ -25,7 +25,6 @@ import {
   Upload,
   RefreshCw,
   FileText,
-  Eye,
   Sparkles,
   Briefcase,
   ShieldCheck,
@@ -61,13 +60,23 @@ function computeMetrics(data: Row[]) {
   }
 
   const total = data.length;
-  const matched = data.filter(r => r.scenario_code === "FULL_MATCH").length;
+
+  const matched = data.filter(r => r.Result === "Reconciled").length;
+
   const unmatched = total - matched;
-  const matchPct = total ? Number(((matched / total) * 100).toFixed(1)) : 0;
+
+  const matchPct = total
+    ? Number(((matched / total) * 100).toFixed(1))
+    : 0;
 
   const leakage = data.reduce((sum, r) => {
-    if (r.scenario_code === "FULL_MATCH") return sum;
-    const diff = Number(r.his_amount || 0) - Number(r.bnk_amount || 0);
+    if (r.Result === "Reconciled") return sum;
+
+    const hisAmount = Number(r["HIS Net Amount"] || 0);
+    const bankAmount = Number(r["Net Amount Credited"] || 0);
+
+    const diff = hisAmount - bankAmount;
+
     return diff > 0 ? sum + diff : sum;
   }, 0);
 
@@ -136,15 +145,13 @@ export default function DashboardPage() {
     };
   }, []);
 
-  /* ================= MANUAL FETCH (Optional Backup) ================= */
+  /* ================= MANUAL FETCH ================= */
 
   const fetchDataByDate = async () => {
     if (!selectedDate) {
       console.log("⚠ No date selected");
       return;
     }
-
-    console.log("🔵 Manual fetch for:", selectedDate);
 
     try {
       const res = await fetch(`/api/mis?date=${selectedDate}`, {
@@ -248,8 +255,6 @@ export default function DashboardPage() {
               <FileText className="h-4 w-4" />
               Generate Report
             </Button>
-
-            
           </div>
 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 text-sm font-medium">
@@ -264,8 +269,7 @@ export default function DashboardPage() {
           <MetricCard title="Matched Transactions" value={metrics.matched.toLocaleString()} subValue="MATCHED" trend={metrics.matchedTrend} icon={ShieldCheck} />
           <MetricCard title="Unmatched" value={metrics.unmatched.toLocaleString()} subValue="DISCREPANCIES" trend={metrics.unmatchedTrend} icon={AlertCircle} />
           <MetricCard title="Match Percentage" value={`${metrics.matchPct}%`} subValue="ACCURACY" trend={metrics.matchPctTrend} icon={BarChart3} />
-          <MetricCard title="Manual Effort Saved"   value={`${Math.floor(metrics.total / 20)} hrs`}
- subValue="TIME SAVED" trend={metrics.effortTrend} icon={History} />
+          <MetricCard title="Manual Effort Saved" value={`${Math.floor(metrics.total / 20)} hrs`} subValue="TIME SAVED" trend={metrics.effortTrend} icon={History} />
           <MetricCard title="Revenue Leakage" value={`₹ ${metrics.leakage.toLocaleString()}`} subValue="AT RISK" trend={metrics.leakageTrend} icon={Search} />
         </div>
 
